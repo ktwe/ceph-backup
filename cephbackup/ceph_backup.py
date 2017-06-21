@@ -1,12 +1,13 @@
 #! /usr/bin/env python
 
-from executor import execute
-from datetime import datetime, timedelta
 import argparse
 import os
+import re
+
 import rados
 import rbd
-import re
+from datetime import datetime, timedelta
+from executor import execute
 
 
 class CephFullBackup(object):
@@ -24,7 +25,8 @@ class CephFullBackup(object):
     DIFF_BACKUP_SUFFIX = '.diff_from'
     COMPRESSED_BACKUP_SUFFIX = '.tar.gz'
 
-    def __init__(self, pool, images, backup_dest, conf_file, check_mode=False, compress_mode=False, window_size=7, window_unit='days'):
+    def __init__(self, pool, images, backup_dest, conf_file, check_mode=False, compress_mode=False, window_size=7,
+                 window_unit='days'):
         '''
         images: list of images to backup
         backup_dest: path where to write the backups
@@ -193,10 +195,12 @@ class CephFullBackup(object):
             # Validate also the base
             execute('rbd info {pool}/{base}'.format(pool=self._pool, base=name), sudo=True)
             print "Exporting diff {base} -> {image} to {dest}".format(base=base, image=name, dest=dest)
-            cmdlist.append('rbd export-diff --from-snap {base} {pool}/{image} {dest}'.format(base=base, pool=self._pool, image=name, dest=dest))
+            cmdlist.append('rbd export-diff --from-snap {base} {pool}/{image} {dest}'.format(base=base, pool=self._pool,
+                                                                                             image=name, dest=dest))
         if self._compress_mode:
             print "Compress mode activated"
-            cmdlist.append('tar Scvfz {dest}{compressed} {dest}'.format(dest=dest, compressed=CephFullBackup.COMPRESSED_BACKUP_SUFFIX))
+            cmdlist.append('tar Scvfz {dest}{compressed} {dest}'.format(dest=dest,
+                                                                        compressed=CephFullBackup.COMPRESSED_BACKUP_SUFFIX))
             cmdlist.append('rm {dest}'.format(dest=dest))
         for cmd in cmdlist:
             print "# " + cmd
@@ -298,7 +302,9 @@ class CephFullBackup(object):
         base_backup_folder = os.path.join(self._backup_dest, self._pool, image)
         date_ref = self._get_date_from_timestamp_str(timestamp)
         for export in os.listdir(base_backup_folder):
-            m = re.match('{}@(.*?)[{}|{}]'.format(image, CephFullBackup.DIFF_BACKUP_SUFFIX, CephFullBackup.FULL_BACKUP_SUFFIX), export)
+            m = re.match(
+                '{}@(.*?)[{}|{}]'.format(image, CephFullBackup.DIFF_BACKUP_SUFFIX, CephFullBackup.FULL_BACKUP_SUFFIX),
+                export)
             if not m:
                 print "WARNING: unexpected file in {base}: {fn}".format(base=base_backup_folder, fn=export)
                 continue
@@ -342,18 +348,24 @@ class CephFullBackup(object):
                 # and now it's just made of a base snapshot
                 self._export_image_or_snapshot(fullsnapshotname, image, newest_snapshot.get('name'))
 
+
 def main():
     parser = argparse.ArgumentParser(description='Backs-up a list of ceph images (rbd volumes)')
     parser.add_argument('-p', '--pool', help="rados pool where the images belong", required=True)
     parser.add_argument('-i', '--images', nargs='+', help="List of ceph images to backup", required=True)
     parser.add_argument('-d', '--dest', help="Destination directory", required=True)
-    parser.add_argument('-n', '--check', help="Check mode, show the commands, do not write a backup", action="store_true")
-    parser.add_argument('-z', '--compress', help="Compress mode, it will compress each exported file and delete the original one", action="store_true")
-    parser.add_argument('-c', '--ceph-conf', help="Path to ceph configuration file", type=str, default='/etc/ceph/ceph.conf')
+    parser.add_argument('-n', '--check', help="Check mode, show the commands, do not write a backup",
+                        action="store_true")
+    parser.add_argument('-z', '--compress',
+                        help="Compress mode, it will compress each exported file and delete the original one",
+                        action="store_true")
+    parser.add_argument('-c', '--ceph-conf', help="Path to ceph configuration file", type=str,
+                        default='/etc/ceph/ceph.conf')
     args = parser.parse_args()
 
     cb = CephFullBackup(args.pool, args.images, args.dest, args.ceph_conf, args.check, args.compress)
     cb.full_backup()
+
 
 if __name__ == '__main__':
     main()
