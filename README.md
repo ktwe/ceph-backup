@@ -43,6 +43,9 @@ Exported backup files will be compressed.
 
 Using `images = *` creates a backup of all images in the pool.
 
+### Skip existing backup
+Using `skip existing = yes` will skip all images where a backup directory exists on the backup destination.
+
 ## Restoring an incremental backup
 
 Restore the base export (full):

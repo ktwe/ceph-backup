@@ -3,10 +3,10 @@
 import argparse
 import os
 import re
+from datetime import datetime, timedelta
 
 import rados
 import rbd
-from datetime import datetime, timedelta
 from executor import execute
 
 
@@ -25,7 +25,8 @@ class CephFullBackup(object):
     DIFF_BACKUP_SUFFIX = '.diff_from'
     COMPRESSED_BACKUP_SUFFIX = '.tar.gz'
 
-    def __init__(self, pool, images, backup_dest, conf_file, check_mode=False, compress_mode=False, window_size=7,
+    def __init__(self, pool, images, backup_dest, conf_file, check_mode=False, skip_existing=False, compress_mode=False,
+                 window_size=7,
                  window_unit='days'):
         '''
         images: list of images to backup
@@ -38,6 +39,7 @@ class CephFullBackup(object):
         self._images = images
         self._backup_dest = backup_dest
         self._check_mode = check_mode
+        self._skip_existing = skip_existing
         self._compress_mode = compress_mode
         # TODO: support also cardinal backup window instead of temporal one, snapshots unit
         self._window_size = window_size
@@ -84,8 +86,16 @@ class CephFullBackup(object):
         '''
         Fetches a list of all images inside the pool.
         '''
+        image_list = self._ceph_rbd.list(self._ceph_ioctx)
 
-        return self._ceph_rbd.list(self._ceph_ioctx)
+        if self._skip_existing:
+            # skip all images already having a backup folder
+            result_list = filter(
+                lambda x: False if os.path.isdir(os.path.join(self._backup_dest, self._pool, x)) else True, image_list)
+        else:
+            result_list = image_list
+
+        return result_list
 
     def _get_snapshots(self, imagename):
         '''
